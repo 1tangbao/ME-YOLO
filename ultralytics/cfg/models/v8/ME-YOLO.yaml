@@ -1,0 +1,52 @@
+
+# Parameters
+nc: 1  # number of classes
+scales: 
+s: [0.33, 0.50, 1024]
+fusion_mode: bifpn
+
+# YOLOv8.0 backbone
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]  # 1-P2/4
+  - [-1, 3, C2f, [128, True]]
+  - [-1, 1, Conv, [256, 3, 2]]  # 3-P3/8
+  - [-1, 6, EM, [256, True]]
+  - [-1, 1, Conv, [512, 3, 2]]  # 5-P4/16
+  - [-1, 6, EM, [512, True]]
+  - [-1, 1, Conv, [1024, 3, 2]]  # 7-P5/32
+  - [-1, 3, EM, [1024, True]]
+  - [-1, 1, SPPF, [1024, 5]]  # 9
+
+# YOLOv8.0-p2 head
+head:
+  - [2, 1, Conv, 256]  #10-P2
+  - [4, 1, Conv, 256]  # 11-P3/8
+  - [6, 1, Conv, 256]  # 12-P4/16
+  - [9, 1, Conv, 256]  # 13-P5/32
+
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]
+  - [[-1, 12], 1, Fusion, [fusion_mode]]  # cat backbone P4
+  - [-1, 3, CDWR, 256]  # 16
+
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]
+  - [[-1, 11], 1, Fusion, [fusion_mode]]  # cat backbone P3
+  - [-1, 3, CDWR, 256]  # 19 (P3/8-small)
+
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]
+  - [[-1, 10], 1, Fusion, [fusion_mode]]  # cat backbone P2
+  - [-1, 3, CDWR, 256]  # 22 (P2/4-xsmall)
+
+########
+  - [2, 1, Conv, [256, 3, 2]] # 23 P2->P3
+  - [[-1, 11, 19], 1, Fusion, [fusion_mode]] # head P3
+  - [-1, 3, CDWR, 256] # 25-P3/8
+
+  - [-1, 1, Conv, [256, 3, 2]] # 26 P3->P4
+  - [[-1, 12, 16], 1, Fusion, [fusion_mode]] # head P4
+  - [-1, 3, CDWR, 256] # 28-P4/16
+
+  
+
+  - [[22, 25, 28], 1, Detect, [nc]]  
