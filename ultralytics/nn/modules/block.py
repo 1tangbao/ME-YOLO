@@ -360,7 +360,7 @@ class Bottleneck_EC(Bottleneck):
         super().__init__(c1, c2, shortcut, g, k, e)
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1,c_,k[0],1)
-        self.cv2 = EMSConv(c2)
+        self.cv2 = EC(c2)
 
 class EM(C2f):
     def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
