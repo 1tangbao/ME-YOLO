@@ -9,26 +9,13 @@ import torch
 import torch.nn as nn
 
 from ultralytics.nn.modules import *
-from ultralytics.nn.extra_modules import *
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
 from ultralytics.utils.loss import v8ClassificationLoss, v8DetectionLoss, v8PoseLoss, v8SegmentationLoss
-from ultralytics.utils.plotting import feature_visualization
 from ultralytics.utils.torch_utils import (fuse_conv_and_bn, fuse_deconv_and_bn, initialize_weights, intersect_dicts,
                                            make_divisible, model_info, scale_img, time_sync, get_num_params)
 
-from ultralytics.nn.backbone.convnextv2 import *
-from ultralytics.nn.backbone.fasternet import *
-from ultralytics.nn.backbone.efficientViT import *
-from ultralytics.nn.backbone.EfficientFormerV2 import *
-from ultralytics.nn.backbone.VanillaNet import *
-from ultralytics.nn.backbone.revcol import *
-from ultralytics.nn.backbone.lsknet import *
-from ultralytics.nn.backbone.SwinTransformer import *
-from ultralytics.nn.backbone.repvit import *
-from ultralytics.nn.backbone.CSwomTramsformer import *
-from ultralytics.nn.backbone.UniRepLKNet import *
-from ultralytics.nn.backbone.TransNext import *
+
 
 try:
     import thop
@@ -758,18 +745,8 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
 
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
         if m in (Classify, Conv, ConvTranspose, GhostConv, Bottleneck, GhostBottleneck, SPP, SPPF, DWConv, Focus,
-                 BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, nn.ConvTranspose2d, DWConvTranspose2d, C3x, RepC3, C2f_Faster, C2f_ODConv,
-                 C2f_Faster_EMA, C2f_DBB, GSConv, VoVGSCSP, VoVGSCSPC, C2f_CloAtt, C3_CloAtt, SCConv, C2f_SCConv, C3_SCConv, C2f_ScConv, C3_ScConv,
-                 C3_EMSC, C3_EMSCP, C2f_EMSC, C2f_EMSCP, RCSOSA, KWConv, C2f_KW, C3_KW, DySnakeConv, C2f_DySnakeConv, C3_DySnakeConv,
-                 DCNv2, C3_DCNv2, C2f_DCNv2, DCNV3_YOLO, C3_DCNv3, C2f_DCNv3, C3_Faster, C3_Faster_EMA, C3_ODConv,
-                 OREPA, OREPA_LargeConv, RepVGGBlock_OREPA, C3_OREPA, C2f_OREPA, C3_DBB, C3_REPVGGOREPA, C2f_REPVGGOREPA,
-                 C3_DCNv2_Dynamic, C2f_DCNv2_Dynamic, C3_ContextGuided, C2f_ContextGuided, C3_MSBlock, C2f_MSBlock,
-                 C3_DLKA, C2f_DLKA, CSPStage, SPDConv, RepBlock, C3_EMBC, C2f_EMBC, SPPF_LSKA, C3_DAttention, C2f_DAttention,
-                 C3_Parc, C2f_Parc, C3_DWR, C2f_DWR, RFAConv, RFCAConv, RFCBAMConv, C3_RFAConv, C2f_RFAConv,
-                 C3_RFCBAMConv, C2f_RFCBAMConv, C3_RFCAConv, C2f_RFCAConv, C3_FocusedLinearAttention, C2f_FocusedLinearAttention,
-                 C3_AKConv, C2f_AKConv, AKConv, C3_MLCA, C2f_MLCA,
-                 C3_UniRepLKNetBlock, C2f_UniRepLKNetBlock, C3_DRB, C2f_DRB, C3_DWR_DRB, C2f_DWR_DRB, CSP_EDLAN,
-                 C3_AggregatedAtt, C2f_AggregatedAtt):
+                 BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, nn.ConvTranspose2d, DWConvTranspose2d, C3x, RepC3,
+                 EM, CDWR):
             if args[0] == 'head_channel':
                 args[0] = d[args[0]]
             c1, c2 = ch[f], args[0]
@@ -783,16 +760,8 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
             if m in (DySnakeConv,):
                 c2 = c2 * 3
             
-            if m in (BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, C3x, RepC3, C2f_Faster, C2f_ODConv, C2f_Faster_EMA, C2f_DBB,
-                     VoVGSCSP, VoVGSCSPC, C2f_CloAtt, C3_CloAtt, C2f_SCConv, C3_SCConv, C2f_ScConv, C3_ScConv,
-                     C3_EMSC, C3_EMSCP, C2f_EMSC, C2f_EMSCP, RCSOSA, C2f_KW, C3_KW, C2f_DySnakeConv, C3_DySnakeConv,
-                     C3_DCNv2, C2f_DCNv2, C3_DCNv3, C2f_DCNv3, C3_Faster, C3_Faster_EMA, C3_ODConv, C3_OREPA, C2f_OREPA, C3_DBB,
-                     C3_REPVGGOREPA, C2f_REPVGGOREPA, C3_DCNv2_Dynamic, C2f_DCNv2_Dynamic, C3_ContextGuided, C2f_ContextGuided, 
-                     C3_MSBlock, C2f_MSBlock, C3_DLKA, C2f_DLKA, CSPStage, RepBlock, C3_EMBC, C2f_EMBC, C3_DAttention, C2f_DAttention,
-                     C3_Parc, C2f_Parc, C3_DWR, C2f_DWR, C3_RFAConv, C2f_RFAConv, C3_RFCBAMConv, C2f_RFCBAMConv, C3_RFCAConv, C2f_RFCAConv,
-                     C3_FocusedLinearAttention, C2f_FocusedLinearAttention, C3_AKConv, C2f_AKConv, C3_MLCA, C2f_MLCA,
-                     C3_UniRepLKNetBlock, C2f_UniRepLKNetBlock, C3_DRB, C2f_DRB, C3_DWR_DRB, C2f_DWR_DRB, CSP_EDLAN,
-                     C3_AggregatedAtt, C2f_AggregatedAtt):
+            if m in (BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, C3x, RepC3, 
+                    EM, CDWR):
                 args.insert(2, n)  # number of repeats
                 n = 1
         elif m is AIFI:
@@ -829,33 +798,11 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
             elif len(args) == 1:
                 m = timm.create_model(m, pretrained=args[0], features_only=True)
             c2 = m.feature_info.channels()
-        elif m in {convnextv2_atto, convnextv2_femto, convnextv2_pico, convnextv2_nano, convnextv2_tiny, convnextv2_base, convnextv2_large, convnextv2_huge,
-                   fasternet_t0, fasternet_t1, fasternet_t2, fasternet_s, fasternet_m, fasternet_l,
-                   EfficientViT_M0, EfficientViT_M1, EfficientViT_M2, EfficientViT_M3, EfficientViT_M4, EfficientViT_M5,
-                   efficientformerv2_s0, efficientformerv2_s1, efficientformerv2_s2, efficientformerv2_l,
-                   vanillanet_5, vanillanet_6, vanillanet_7, vanillanet_8, vanillanet_9, vanillanet_10, vanillanet_11, vanillanet_12, vanillanet_13, vanillanet_13_x1_5, vanillanet_13_x1_5_ada_pool,
-                   RevCol,
-                   lsknet_t, lsknet_s,
-                   SwinTransformer_Tiny,
-                   repvit_m0_9, repvit_m1_0, repvit_m1_1, repvit_m1_5, repvit_m2_3,
-                   CSWin_tiny, CSWin_small, CSWin_base, CSWin_large,
-                   unireplknet_a, unireplknet_f, unireplknet_p, unireplknet_n, unireplknet_t, unireplknet_s, unireplknet_b, unireplknet_l, unireplknet_xl,
-                   transnext_micro, transnext_tiny, transnext_small, transnext_base
-                   }:
-            if m is RevCol:
-                args[1] = [make_divisible(min(k, max_channels) * width, 8) for k in args[1]]
-                args[2] = [max(round(k * depth), 1) for k in args[2]]
-            m = m(*args)
-            c2 = m.channel
-        elif m in {EMA, SpatialAttention, BiLevelRoutingAttention, BiLevelRoutingAttention_nchw,
-                   TripletAttention, CoordAtt, CBAM, BAMBlock, LSKBlock, ScConv, LAWDS, EMSConv, EMSConvP,
-                   SEAttention, CPCA, Partial_conv3, FocalModulation, EfficientAttention, MPCA, deformable_LKA,
-                   EffectiveSEModule, LSKA, SegNext_Attention, DAttention, MLCA, TransNeXt_AggregatedAttention}:
+        
+        elif m in { CoordAtt, CBAM, EC}:
             c2 = ch[f]
             args = [c2, *args]
             # print(args)
-        elif m in {SimAM, SpatialGroupEnhance}:
-            c2 = ch[f]
         elif m is ContextGuidedBlock_Down:
             c2 = ch[f] * 2
             args = [ch[f], c2, *args]
@@ -863,42 +810,7 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
             c1 = [ch[x] for x in f]
             c2 = make_divisible(min(args[0], max_channels) * width, 8)
             args = [c1, c2]
-        # --------------GOLD-YOLO--------------
-        elif m in {SimFusion_4in, AdvPoolFusion}:
-            c2 = sum(ch[x] for x in f)
-        elif m is SimFusion_3in:
-            c2 = args[0]
-            if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
-                c2 = make_divisible(min(c2, max_channels) * width, 8)
-            args = [[ch[f_] for f_ in f], c2]
-        elif m is IFM:
-            c1 = ch[f]
-            c2 = sum(args[0])
-            args = [c1, *args]
-        elif m is InjectionMultiSum_Auto_pool:
-            c1 = ch[f[0]]
-            c2 = args[0]
-            args = [c1, *args]
-        elif m is PyramidPoolAgg:
-            c2 = args[0]
-            args = [sum([ch[f_] for f_ in f]), *args]
-        elif m is TopBasicLayer:
-            c2 = sum(args[1])
-        # --------------GOLD-YOLO--------------
-        # --------------ASF--------------
-        elif m is Zoom_cat:
-            c2 = sum(ch[x] for x in f)
-        elif m is Add:
-            c2 = ch[f[-1]]
-        elif m is ScalSeq:
-            c1 = [ch[x] for x in f]
-            c2 = make_divisible(args[0] * width, 8)
-            args = [c1, c2]
-        elif m is asf_attention_model:
-            args = [ch[f[-1]]]
-        # --------------ASF--------------
-        elif m is SDI:
-            args = [[ch[x] for x in f]]
+       
         else:
             c2 = ch[f]
 
